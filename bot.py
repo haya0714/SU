@@ -140,7 +140,7 @@ async def query_huggingface(prompt):
 @bot.event
 async def on_ready():
     print(f"{bot.user} 已上線！")
-    channel = bot.get_channel(1388500249898913922)
+    channel = bot.get_channel(1366595410830819328)
     print(f"發話頻道：{channel.name if channel else '找不到頻道！'}")
 
 @bot.event
