@@ -119,15 +119,21 @@ async def query_huggingface(prompt):
         "parameters": {"max_new_tokens": 50, "do_sample": True, "temperature": 0.7}
     }
     try:
+        print("🔍 發送 Hugging Face 請求中...")
+        print("➡️ 請求內容：", payload)
         response = requests.post(hf_api_url, headers=hf_headers, json=payload, timeout=10)
+        print("✅ 回應狀態碼：", response.status_code)
+        print("📨 回應內容：", response.text)
+
         if response.status_code == 200:
             result = response.json()
             return result[0]['generated_text'].split("你:")[-1].strip()
         else:
-            print("Hugging Face 回應錯誤:", response.status_code, response.text)
+            print("⚠️ HF 回應錯誤:", response.status_code, response.text)
     except Exception as e:
         print("❌ HF API 請求失敗:", e)
     return None
+
 
 @bot.event
 async def on_ready():
