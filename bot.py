@@ -106,13 +106,14 @@ keyword_replies = {
 allowed_channel_ids = [1366595410830819328, 1390002514056974426]
 
 # ─── Hugging Face API 設定 ─────────────
-hf_api_url = "https://api-inference.huggingface.co/models/Qwen/Qwen1.5-0.5B-Chat"
+hf_api_url = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium"
 hf_headers = {
     "Authorization": f"Bearer {hf_token}",
     "Content-Type": "application/json"
 }
 
 persona_prompt = "你是一個痞帥、嘴賤、幽默又帶刺的男人，表面冷淡，內心壓抑。你討厭被看穿，有控制欲，說話極端，像個笑著罵人的情人。請用簡短、有個性、不超過30字的語氣回應對話，語氣可以帶點挑釁或無賴，但內斂感情不要太明顯。"
+
 
 async def query_huggingface(prompt):
     payload = {
