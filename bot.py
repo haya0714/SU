@@ -168,7 +168,7 @@ async def on_message(message):
             if reply:
                 await message.reply(reply, mention_author=True)
 
-    if random.random() < 0.4:
+    if random.random() < 0.2:
         try:
             unicode_emojis = ["😏", "🔥", "😎", "🤔", "😘", "🙄", "💋", "❤️"]
             await message.add_reaction(random.choice(unicode_emojis))
