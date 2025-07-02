@@ -15,7 +15,6 @@ discord_token = os.getenv("DISCORD_TOKEN")
 hf_token = os.getenv("HF_TOKEN")  # Hugging Face API Token
 print(f"📦 HF_TOKEN 載入：{hf_token}")
 
-
 # ─── 設定 Discord 權限與 Bot ─────────
 intents = discord.Intents.default()
 intents.message_content = True
@@ -104,7 +103,7 @@ keyword_replies = {
 }
 
 # ─── 支援的頻道 ID ─────────────────
-allowed_channel_ids = [1366595410830819328,1390002514056974426]
+allowed_channel_ids = [1366595410830819328, 1390002514056974426]
 
 # ─── Hugging Face API 設定 ─────────────
 hf_api_url = "https://api-inference.huggingface.co/models/Qwen/Qwen1.5-0.5B-Chat"
@@ -136,12 +135,15 @@ async def query_huggingface(prompt):
         print("❌ HF API 請求失敗:", e)
     return None
 
-
 @bot.event
 async def on_ready():
     print(f"{bot.user} 已上線！")
-    channel = bot.get_channel(1366595410830819328,1390002514056974426)
-    print(f"發話頻道：{channel.name if channel else '找不到頻道！'}")
+    for cid in allowed_channel_ids:
+        channel = bot.get_channel(cid)
+        if channel:
+            print(f"發話頻道：{channel.name}（ID: {cid}）")
+        else:
+            print(f"⚠️ 找不到頻道（ID: {cid}）── 請確認 BOT 是否加入伺服器、或有讀取權限")
 
 @bot.event
 async def on_message(message):
@@ -152,7 +154,6 @@ async def on_message(message):
     content = message.content
     channel_id = message.channel.id
 
-    # Debug print: 來源頻道與是否是 bot
     print(f"🧩 收到訊息：'{content}' | 頻道ID：{channel_id} | 是 bot 嗎？{message.author.bot}")
 
     if not message.author.bot and channel_id in allowed_channel_ids:
@@ -172,9 +173,6 @@ async def on_message(message):
             await message.add_reaction(random.choice(unicode_emojis))
         except Exception as e:
             print("⚠️ 加表情出錯：", e)
-
-
-
 
 # ─── Flask 健康檢查用 ────────────────────────
 app = Flask(__name__)
