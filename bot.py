@@ -147,12 +147,12 @@ async def on_message(message):
     if not message.author.bot and channel_id in allowed_channel_ids:
         for keyword, reply_list in keyword_replies.items():
             if keyword in content:
-                await message.reply(random.choice(reply_list))
+                await message.reply(random.choice(reply_list), mention_author=True)
                 break
         else:
             reply = await query_huggingface(content)
             if reply:
-                await message.reply(reply)
+                await message.reply(reply, mention_author=True)
 
     if random.random() < 0.4:
         try:
@@ -160,6 +160,7 @@ async def on_message(message):
             await message.add_reaction(random.choice(unicode_emojis))
         except Exception as e:
             print("⚠️ 加表情出錯：", e)
+
 
 # ─── Flask 健康檢查用 ────────────────────────
 app = Flask(__name__)
