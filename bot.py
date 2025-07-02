@@ -104,7 +104,7 @@ keyword_replies = {
 }
 
 # ─── 支援的頻道 ID ─────────────────
-allowed_channel_ids = [1366595410830819328]
+allowed_channel_ids = [1366595410830819328,1390002514056974426]
 
 # ─── Hugging Face API 設定 ─────────────
 hf_api_url = "https://api-inference.huggingface.co/models/Qwen/Qwen1.5-0.5B-Chat"
@@ -140,7 +140,7 @@ async def query_huggingface(prompt):
 @bot.event
 async def on_ready():
     print(f"{bot.user} 已上線！")
-    channel = bot.get_channel(1366595410830819328)
+    channel = bot.get_channel(1366595410830819328,1390002514056974426)
     print(f"發話頻道：{channel.name if channel else '找不到頻道！'}")
 
 @bot.event
@@ -152,12 +152,16 @@ async def on_message(message):
     content = message.content
     channel_id = message.channel.id
 
+    # Debug print: 來源頻道與是否是 bot
+    print(f"🧩 收到訊息：'{content}' | 頻道ID：{channel_id} | 是 bot 嗎？{message.author.bot}")
+
     if not message.author.bot and channel_id in allowed_channel_ids:
         for keyword, reply_list in keyword_replies.items():
             if keyword in content:
                 await message.reply(random.choice(reply_list), mention_author=True)
                 break
         else:
+            print("🔧 呼叫 Hugging Face API 準備中...")
             reply = await query_huggingface(content)
             if reply:
                 await message.reply(reply, mention_author=True)
@@ -168,6 +172,8 @@ async def on_message(message):
             await message.add_reaction(random.choice(unicode_emojis))
         except Exception as e:
             print("⚠️ 加表情出錯：", e)
+
+
 
 
 # ─── Flask 健康檢查用 ────────────────────────
