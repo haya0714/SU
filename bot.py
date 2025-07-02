@@ -13,6 +13,8 @@ from threading import Thread
 load_dotenv()
 discord_token = os.getenv("DISCORD_TOKEN")
 hf_token = os.getenv("HF_TOKEN")  # Hugging Face API Token
+print(f"📦 HF_TOKEN 載入：{hf_token}")
+
 
 # ─── 設定 Discord 權限與 Bot ─────────
 intents = discord.Intents.default()
