@@ -134,18 +134,31 @@ async def query_huggingface(prompt):
 
         if response.status_code == 200:
             result = response.json()
-            generated = result[0].get("generated_text", "")
-            if "你:" in generated:
-                reply = generated.split("你:")[-1].split("\n")[0].strip()
-                return reply if reply else None
+
+            # 處理 Qwen 回傳格式（字典形式）
+            if isinstance(result, dict) and 'generated_text' in result:
+                reply = result['generated_text']
+                if "你:" in reply:
+                    return reply.split("你:")[-1].split("\n")[0].strip()
+                return reply.strip()
+
+            # 處理 list 形式
+            elif isinstance(result, list) and 'generated_text' in result[0]:
+                reply = result[0]['generated_text']
+                if "你:" in reply:
+                    return reply.split("你:")[-1].split("\n")[0].strip()
+                return reply.strip()
+
             else:
-                print("⚠️ 回傳格式異常，無法找到 '你:' 標記")
-                return generated.strip()
+                print("⚠️ 回傳格式無法辨識")
         else:
             print("⚠️ HF 回應錯誤:", response.status_code, response.text)
+
     except Exception as e:
         print("❌ HF API 請求失敗:", e)
+
     return None
+
 
 
 @bot.event
