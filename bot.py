@@ -1,26 +1,24 @@
 import discord
 from discord.ext import commands
 import os
-import asyncio
 import random
 import requests
 from dotenv import load_dotenv
-import traceback
 from flask import Flask
 from threading import Thread
 
-# ─── 載入環境變數 ────────────────────
+# ─── 載入環境變數 ─────────────────────
 load_dotenv()
 discord_token = os.getenv("DISCORD_TOKEN")
-hf_token = os.getenv("HF_TOKEN")  # Hugging Face API Token
+hf_token = os.getenv("HF_TOKEN")
 print(f"📦 HF_TOKEN 載入：{hf_token}")
 
-# ─── 設定 Discord 權限與 Bot ─────────
+# ─── Discord 權限設定 ────────────────
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ─── 關鍵字回覆字典 ────────────────────
+# ─── 關鍵字自動回覆 ──────────────────
 keyword_replies = {
     "抱抱": [
         "「需要抱抱？你是三歲小孩嗎？」",
@@ -102,117 +100,85 @@ keyword_replies = {
     ]
 }
 
-# ─── 支援的頻道 ID ─────────────────
+# ─── 白名單頻道 ─────────────────────
 allowed_channel_ids = [
-    1366595410830819328,  # 原本的頻道
-    1390002514056974426   # 新增的頻道
+    1366595410830819328,
+    1390002514056974426
 ]
-
 
 # ─── Hugging Face API 設定 ─────────────
 hf_api_url = "https://api-inference.huggingface.co/models/Qwen/Qwen1.5-0.5B-Chat"
-
 hf_headers = {
     "Authorization": f"Bearer {hf_token}",
     "Content-Type": "application/json"
 }
-
 persona_prompt = "你是一個痞帥、嘴賤、幽默又帶刺的男人，表面冷淡，內心壓抑。你討厭被看穿，有控制欲，說話極端，像個笑著罵人的情人。請用簡短、有個性、不超過30字的語氣回應對話，語氣可以帶點挑釁或無賴，但內斂感情不要太明顯。"
-
 
 async def query_huggingface(prompt):
     payload = {
         "inputs": f"{persona_prompt}\n使用者: {prompt}\n你:",
-        "parameters": {"max_new_tokens": 50, "do_sample": True, "temperature": 0.7}
+        "parameters": {"max_new_tokens": 30, "do_sample": True, "temperature": 0.7}
     }
     try:
-        print("🔍 發送 Hugging Face 請求中...")
-        print("➡️ 請求內容：", payload)
-        response = requests.post(hf_api_url, headers=hf_headers, json=payload, timeout=20)
-        print("✅ 回應狀態碼：", response.status_code)
-        print("📨 回應內容：", response.text)
+        print("🔍 發送 HF 請求中...")
+        response = requests.post(hf_api_url, headers=hf_headers, json=payload, timeout=10)
+        print("✅ HF 狀態碼：", response.status_code)
 
         if response.status_code == 200:
             result = response.json()
-
-            # 處理 Qwen 回傳格式（字典形式）
-            if isinstance(result, dict) and 'generated_text' in result:
-                reply = result['generated_text']
+            if isinstance(result, list) and "generated_text" in result[0]:
+                reply = result[0]["generated_text"]
                 if "你:" in reply:
                     return reply.split("你:")[-1].split("\n")[0].strip()
                 return reply.strip()
-
-            # 處理 list 形式
-            elif isinstance(result, list) and 'generated_text' in result[0]:
-                reply = result[0]['generated_text']
-                if "你:" in reply:
-                    return reply.split("你:")[-1].split("\n")[0].strip()
-                return reply.strip()
-
             else:
-                print("⚠️ 回傳格式無法辨識")
+                print("⚠️ 回傳格式異常")
         else:
-            print("⚠️ HF 回應錯誤:", response.status_code, response.text)
-
+            print("⚠️ HF 回應錯誤：", response.text)
     except Exception as e:
-        print("❌ HF API 請求失敗:", e)
-
+        print("❌ HF 請求失敗：", e)
     return None
-
-
 
 @bot.event
 async def on_ready():
-    print(f"{bot.user} 已上線！")
+    print(f"🤖 {bot.user} 已上線")
     for cid in allowed_channel_ids:
         channel = bot.get_channel(cid)
         if channel:
-            print(f"發話頻道：{channel.name}（ID: {cid}）")
+            print(f"📢 可用頻道：{channel.name}（ID: {cid}）")
         else:
-            print(f"⚠️ 找不到頻道（ID: {cid}）── 請確認 BOT 是否加入伺服器、或有讀取權限")
+            print(f"⚠️ 無法存取頻道 {cid}")
 
 @bot.event
 async def on_message(message):
-    if message.author == bot.user:
+    if message.author.bot:
         return
 
     await bot.process_commands(message)
-
     content = message.content
     channel_id = message.channel.id
 
-    # debug info
-    print("📨 收到訊息：", content)
+    print("📩 收到訊息：", content)
     print("📌 頻道 ID：", channel_id)
-    print("🤖 是否 bot 發送：", message.author.bot)
 
-    if not message.author.bot and channel_id in allowed_channel_ids:
-        for keyword, reply_list in keyword_replies.items():
+    if channel_id in allowed_channel_ids:
+        for keyword, replies in keyword_replies.items():
             if keyword in content:
-                reply = random.choice(reply_list)
-                print(f"💬 關鍵字「{keyword}」命中，回覆：{reply}")
+                reply = random.choice(replies)
+                print(f"🎯 關鍵字「{keyword}」命中，回覆：{reply}")
                 await message.reply(reply, mention_author=True)
-                break
+                return
+
+        print("🧠 呼叫 Hugging Face 回覆中...")
+        reply = await query_huggingface(content)
+        if reply:
+            print("💬 HF 回覆：", reply)
+            await message.reply(reply, mention_author=True)
         else:
-            print("🔧 呼叫 Hugging Face API")
-            reply = await query_huggingface(content)
-            if reply:
-                print("🎯 HF 回覆：", reply)
-                await message.reply(reply, mention_author=True)
+            print("❌ HF 無回覆")
 
-    if random.random() < 0.4:
-        try:
-            unicode_emojis = ["😏", "🔥", "😎", "🤔", "😘", "🙄", "💋", "❤️"]
-            emoji = random.choice(unicode_emojis)
-            print("✨ 加入表情：", emoji)
-            await message.add_reaction(emoji)
-        except Exception as e:
-            print("⚠️ 加表情出錯：", e)
-
-
-# ─── Flask 健康檢查用 ────────────────────────
+# ─── Flask Ping 健康檢查 ─────────────────
 app = Flask(__name__)
-
 @app.route("/")
 def home():
     return "Bot is alive."
@@ -222,5 +188,5 @@ def run_web():
 
 Thread(target=run_web).start()
 
-# ─── 啟動 Discord Bot ─────────────────
+# ─── 啟動 BOT ─────────────────────────
 bot.run(discord_token)
