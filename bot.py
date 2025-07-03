@@ -103,7 +103,11 @@ keyword_replies = {
 }
 
 # ─── 支援的頻道 ID ─────────────────
-allowed_channel_ids = [1366595410830819328, 1390002514056974426]
+allowed_channel_ids = [
+    1366595410830819328,  # 原本的頻道
+    1390002514056974426   # 新增的頻道
+]
+
 
 # ─── Hugging Face API 設定 ─────────────
 hf_api_url = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium"
@@ -152,28 +156,38 @@ async def on_message(message):
         return
 
     await bot.process_commands(message)
+
     content = message.content
     channel_id = message.channel.id
 
-    print(f"🧩 收到訊息：'{content}' | 頻道ID：{channel_id} | 是 bot 嗎？{message.author.bot}")
+    # debug info
+    print("📨 收到訊息：", content)
+    print("📌 頻道 ID：", channel_id)
+    print("🤖 是否 bot 發送：", message.author.bot)
 
     if not message.author.bot and channel_id in allowed_channel_ids:
         for keyword, reply_list in keyword_replies.items():
             if keyword in content:
-                await message.reply(random.choice(reply_list), mention_author=True)
+                reply = random.choice(reply_list)
+                print(f"💬 關鍵字「{keyword}」命中，回覆：{reply}")
+                await message.reply(reply, mention_author=True)
                 break
         else:
-            print("🔧 呼叫 Hugging Face API 準備中...")
+            print("🔧 呼叫 Hugging Face API")
             reply = await query_huggingface(content)
             if reply:
+                print("🎯 HF 回覆：", reply)
                 await message.reply(reply, mention_author=True)
 
-    if random.random() < 0.2:
+    if random.random() < 0.4:
         try:
             unicode_emojis = ["😏", "🔥", "😎", "🤔", "😘", "🙄", "💋", "❤️"]
-            await message.add_reaction(random.choice(unicode_emojis))
+            emoji = random.choice(unicode_emojis)
+            print("✨ 加入表情：", emoji)
+            await message.add_reaction(emoji)
         except Exception as e:
             print("⚠️ 加表情出錯：", e)
+
 
 # ─── Flask 健康檢查用 ────────────────────────
 app = Flask(__name__)
