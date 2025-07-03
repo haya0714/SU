@@ -110,7 +110,8 @@ allowed_channel_ids = [
 
 
 # ─── Hugging Face API 設定 ─────────────
-hf_api_url = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium"
+hf_api_url = "https://api-inference.huggingface.co/models/Qwen/Qwen1.5-0.5B-Chat"
+
 hf_headers = {
     "Authorization": f"Bearer {hf_token}",
     "Content-Type": "application/json"
@@ -127,18 +128,25 @@ async def query_huggingface(prompt):
     try:
         print("🔍 發送 Hugging Face 請求中...")
         print("➡️ 請求內容：", payload)
-        response = requests.post(hf_api_url, headers=hf_headers, json=payload, timeout=10)
+        response = requests.post(hf_api_url, headers=hf_headers, json=payload, timeout=20)
         print("✅ 回應狀態碼：", response.status_code)
         print("📨 回應內容：", response.text)
 
         if response.status_code == 200:
             result = response.json()
-            return result[0]['generated_text'].split("你:")[-1].strip()
+            generated = result[0].get("generated_text", "")
+            if "你:" in generated:
+                reply = generated.split("你:")[-1].split("\n")[0].strip()
+                return reply if reply else None
+            else:
+                print("⚠️ 回傳格式異常，無法找到 '你:' 標記")
+                return generated.strip()
         else:
             print("⚠️ HF 回應錯誤:", response.status_code, response.text)
     except Exception as e:
         print("❌ HF API 請求失敗:", e)
     return None
+
 
 @bot.event
 async def on_ready():
