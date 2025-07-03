@@ -45,26 +45,30 @@ keyword_replies = {
 openrouter_url = "https://openrouter.ai/api/v1/chat/completions"
 openrouter_headers = {
     "Authorization": f"Bearer {openrouter_api_key}",
-    "Content-Type": "application/json"
+    "Content-Type": "application/json",
+    "HTTP-Referer": "https://su-q91v.onrender.com",
+    "X-Title": "DiscordBot"
 }
 persona_prompt = {
     "role": "system",
     "content": "你是一個痞帥、嘴賤、幽默又帶刺的男人，表面冷淡，內心壓抑。你討厭被看穿，有控制欲，說話極端，像個笑著罵人的情人。請用簡短、有個性、不超過30字的語氣回應對話，語氣可以帶點挑釁或無賴，但內斂感情不要太明顯。"
 }
 
+# ✅ 僅此段已修改
 async def query_openrouter(user_input):
     payload = {
-        "model": "mistralai/mistral-7b-instruct",
+        "model": "openchat/openchat-3.5-1210",
         "messages": [persona_prompt, {"role": "user", "content": user_input}],
         "temperature": 0.8,
         "max_tokens": 60
     }
     try:
         print("🚀 [OpenRouter] 發送請求...")
-        res = requests.post(openrouter_url, headers=openrouter_headers, json=payload, timeout=15)
+        res = requests.post(openrouter_url, headers=openrouter_headers, json=payload, timeout=20)
         if res.status_code == 200:
             data = res.json()
-            return data["choices"][0]["message"]["content"].strip()
+            reply = data.get("choices", [])[0].get("message", {}).get("content", "").strip()
+            return reply
         else:
             print("⚠️ OpenRouter 回應錯誤：", res.status_code, res.text)
     except Exception as e:
