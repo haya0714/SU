@@ -151,31 +151,41 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
-    if message.author.bot:
+    print("✅ on_message() 被觸發")
+    print("📨 訊息內容：", message.content)
+    print("👤 發送者：", message.author)
+    print("🤖 是不是 bot：", message.author.bot)
+    print("🪪 頻道 ID：", message.channel.id)
+
+    if message.author == bot.user:
         return
 
     await bot.process_commands(message)
+
     content = message.content
     channel_id = message.channel.id
 
-    print("📩 收到訊息：", content)
-    print("📌 頻道 ID：", channel_id)
-
-    if channel_id in allowed_channel_ids:
-        for keyword, replies in keyword_replies.items():
+    if not message.author.bot and channel_id in allowed_channel_ids:
+        for keyword, reply_list in keyword_replies.items():
             if keyword in content:
-                reply = random.choice(replies)
-                print(f"🎯 關鍵字「{keyword}」命中，回覆：{reply}")
+                reply = random.choice(reply_list)
+                print(f"💬 關鍵字「{keyword}」命中，回覆：{reply}")
                 await message.reply(reply, mention_author=True)
-                return
-
-        print("🧠 呼叫 Hugging Face 回覆中...")
-        reply = await query_huggingface(content)
-        if reply:
-            print("💬 HF 回覆：", reply)
-            await message.reply(reply, mention_author=True)
+                break
         else:
-            print("❌ HF 無回覆")
+            print("🔧 呼叫 Hugging Face API")
+            reply = await query_huggingface(content)
+            if reply:
+                print("🎯 HF 回覆：", reply)
+                await message.reply(reply, mention_author=True)
+
+    if random.random() < 0.4:
+        try:
+            emoji = random.choice(["😏", "🔥", "😎", "🤔", "😘", "🙄", "💋", "❤️"])
+            print("✨ 加入表情：", emoji)
+            await message.add_reaction(emoji)
+        except Exception as e:
+            print("⚠️ 加表情出錯：", e)
 
 # ─── Flask Ping 健康檢查 ─────────────────
 app = Flask(__name__)
