@@ -11,12 +11,12 @@ from threading import Thread
 # ─── 載入 .env ─────────────────
 load_dotenv()
 discord_token = os.getenv("DISCORD_TOKEN")
-hf_token = os.getenv("HF_TOKEN")
-print(f"📦 HF_TOKEN 載入：{hf_token}")
+openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+print(f"📦 OpenRouter API 載入：{openrouter_api_key}")
 
 # ─── Intents ─────────────────
 intents = discord.Intents.default()
-intents.message_content = True  # ✅ 確保 message content 打開
+intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # ─── 支援的頻道 ID ─────────────
@@ -27,7 +27,6 @@ allowed_channel_ids = [
 
 # ─── 關鍵字對應回覆 ──────────────
 keyword_replies = {
-    # ✅ 原樣保留不動
     "抱抱": ["「需要抱抱？你是三歲小孩嗎？」", "「靠近點，你站那麼遠是怕我咬你還是怎樣？」", "「就一次，別習慣了。」", "「妳幾歲？還要人哄睡？」", "「過來，三秒，不准賴著不放。」"],
     "親親": ["「嘴巴湊過來，我沒時間等你猶豫。」", "「嘴巴靠過來，我忍到快咬人了。」", "「閉上眼睛，不然我怎麼專心？」", "「妳主動的時候，是不是都沒在想後果？」", "「親了就別裝乖，我可記帳的。」", "「要我親，先講清楚妳是不是想惹我失控。」"],
     "結婚": ["「誰說要跟你結婚了？別自作多情。」", "「結婚？你確定要把自己綁在我這種人身上？」", "「我不需要戒指證明什麼，你是我的就夠了。」", "「妳瘋了吧，我這種人能跟誰過一輩子？」", "「先把戀愛腦治好，再考慮婚紗尺寸。」", "「除非對象是妳，否則想都別想。」"],
@@ -42,32 +41,34 @@ keyword_replies = {
     "想你": ["「妳想我？我還以為妳早被哪個男人牽走了。」", "「我不在的時候，腦子最好只放我，不然我會找人驗妳夢裡。」", "「別光說嘴，來讓我看看妳到底想我想成什麼德行。」"]
 }
 
-# ─── Hugging Face API 設定 ──────
-hf_api_url = "https://api-inference.huggingface.co/models/Qwen/Qwen1.5-0.5B-Chat"
-hf_headers = {
-    "Authorization": f"Bearer {hf_token}",
+# ─── OpenRouter 設定 ──────
+openrouter_url = "https://openrouter.ai/api/v1/chat/completions"
+openrouter_headers = {
+    "Authorization": f"Bearer {openrouter_api_key}",
     "Content-Type": "application/json"
 }
-persona_prompt = "你是一個痞帥、嘴賤、幽默又帶刺的男人，表面冷淡，內心壓抑。你討厭被看穿，有控制欲，說話極端，像個笑著罵人的情人。請用簡短、有個性、不超過30字的語氣回應對話，語氣可以帶點挑釁或無賴，但內斂感情不要太明顯。"
+persona_prompt = {
+    "role": "system",
+    "content": "你是一個痞帥、嘴賤、幽默又帶刺的男人，表面冷淡，內心壓抑。你討厭被看穿，有控制欲，說話極端，像個笑著罵人的情人。請用簡短、有個性、不超過30字的語氣回應對話，語氣可以帶點挑釁或無賴，但內斂感情不要太明顯。"
+}
 
-async def query_huggingface(prompt):
+async def query_openrouter(user_input):
     payload = {
-        "inputs": f"{persona_prompt}\n使用者: {prompt}\n你:",
-        "parameters": {"max_new_tokens": 50, "do_sample": True, "temperature": 0.7}
+        "model": "mistralai/mistral-7b-instruct",
+        "messages": [persona_prompt, {"role": "user", "content": user_input}],
+        "temperature": 0.8,
+        "max_tokens": 60
     }
     try:
-        print("🔧 [HF] 送出請求中...")
-        res = requests.post(hf_api_url, headers=hf_headers, json=payload, timeout=30)
+        print("🚀 [OpenRouter] 發送請求...")
+        res = requests.post(openrouter_url, headers=openrouter_headers, json=payload, timeout=15)
         if res.status_code == 200:
-            result = res.json()
-            reply = result[0].get("generated_text", "")
-            if "你:" in reply:
-                return reply.split("你:")[-1].split("\n")[0].strip()
-            return reply.strip()
+            data = res.json()
+            return data["choices"][0]["message"]["content"].strip()
         else:
-            print("⚠️ HF 回應錯誤：", res.status_code, res.text)
+            print("⚠️ OpenRouter 回應錯誤：", res.status_code, res.text)
     except Exception as e:
-        print("❌ HF 請求錯誤：", e)
+        print("❌ OpenRouter 請求錯誤：", e)
     return None
 
 # ─── Discord BOT 事件 ──────
@@ -100,10 +101,10 @@ async def on_message(message):
                 await message.reply(reply, mention_author=True)
                 return
 
-        print("🔍 未命中關鍵字，呼叫 Hugging Face...")
-        reply = await query_huggingface(content)
+        print("🔍 未命中關鍵字，呼叫 OpenRouter...")
+        reply = await query_openrouter(content)
         if reply:
-            print(f"📨 HF 回覆：{reply}")
+            print(f"📨 回覆：{reply}")
             await message.reply(reply, mention_author=True)
 
 # ─── Flask 健康檢查 ──────
