@@ -41,6 +41,7 @@ keyword_replies = {
     "想你": ["「妳想我？我還以為妳早被哪個男人牽走了。」", "「我不在的時候，腦子最好只放我，不然我會找人驗妳夢裡。」", "「別光說嘴，來讓我看看妳到底想我想成什麼德行。」"]
 }
 
+
 openrouter_available = True
 
 def openrouter_offline():
@@ -78,7 +79,7 @@ async def on_message(message):
     if not (is_from_player or is_from_brother or is_from_other_allowed_bot):
         return
 
-        if openrouter_available:
+    if openrouter_available:
         try:
             ai_reply = None
             if is_from_player:
@@ -105,10 +106,24 @@ async def on_message(message):
                 await message.reply(random.choice(reply_list))
                 break
 
-        # ✅ 隨機加入表情符號
         try:
-            if random.random() < 0.4:  # 40% 機率反應
+            if random.random() < 0.4:
                 unicode_emojis = ["😏", "😎", "🔥", "😘", "🙄", "💋", "❤️"]
                 await message.add_reaction(random.choice(unicode_emojis))
         except Exception as e:
             print("⚠️ 表情符號添加失敗：", e)
+
+# ─── Flask Web Server ───────────────
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return "Bot is alive."
+
+def run_web():
+    app.run(host="0.0.0.0", port=8080)
+
+# ─── 啟動 BOT ──────────────────────
+if __name__ == "__main__":
+    Thread(target=run_web).start()
+    bot.run(discord_token)
