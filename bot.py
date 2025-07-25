@@ -1,20 +1,20 @@
+from utils import get_ai_reply, lover_system_prompt, brother_system_prompt
+
 import discord
 from discord.ext import commands
 import os
 import asyncio
 import random
-import requests
 from dotenv import load_dotenv
+import traceback
 from flask import Flask
 from threading import Thread
 
-# ─── 載入 .env ─────────────────
+# ─── 載入環境變數 ────────────────────
 load_dotenv()
 discord_token = os.getenv("DISCORD_TOKEN")
-openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
-print(f"📦 OpenRouter API 載入：{openrouter_api_key}")
 
-# ─── Intents ─────────────────
+# ─── 設定 Discord 權限與 Bot ─────────
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -41,84 +41,74 @@ keyword_replies = {
     "想你": ["「妳想我？我還以為妳早被哪個男人牽走了。」", "「我不在的時候，腦子最好只放我，不然我會找人驗妳夢裡。」", "「別光說嘴，來讓我看看妳到底想我想成什麼德行。」"]
 }
 
-# ─── OpenRouter 設定 ──────
-openrouter_url = "https://openrouter.ai/api/v1/chat/completions"
-openrouter_headers = {
-    "Authorization": f"Bearer {openrouter_api_key}",
-    "Content-Type": "application/json",
-    "HTTP-Referer": "https://su-q91v.onrender.com",
-    "X-Title": "DiscordBot"
-}
-persona_prompt = {
-    "role": "system",
-    "content": "你是一個痞帥、嘴賤、幽默又帶刺的男人，表面冷淡，內心壓抑。你討厭被看穿，有控制欲，說話極端，像個笑著罵人的情人。請用簡短、有個性、不超過30字的語氣回應對話，語氣可以帶點挑釁或無賴，但內斂感情不要太明顯。"
-}
+openrouter_available = True
 
-# ✅ 僅此段已修改
-async def query_openrouter(user_input):
-    payload = {
-        "model": "openchat/openchat-3.5-1210",
-        "messages": [persona_prompt, {"role": "user", "content": user_input}],
-        "temperature": 0.8,
-        "max_tokens": 60
-    }
-    try:
-        print("🚀 [OpenRouter] 發送請求...")
-        res = requests.post(openrouter_url, headers=openrouter_headers, json=payload, timeout=20)
-        if res.status_code == 200:
-            data = res.json()
-            reply = data.get("choices", [])[0].get("message", {}).get("content", "").strip()
-            return reply
-        else:
-            print("⚠️ OpenRouter 回應錯誤：", res.status_code, res.text)
-    except Exception as e:
-        print("❌ OpenRouter 請求錯誤：", e)
-    return None
+def openrouter_offline():
+    global openrouter_available
+    openrouter_available = False
+    print("[INFO] OpenRouter 額度用完，已切換至關鍵字模式")
 
-# ─── Discord BOT 事件 ──────
 @bot.event
 async def on_ready():
-    print(f"🤖 BOT 上線：{bot.user}")
-    for cid in allowed_channel_ids:
-        ch = bot.get_channel(cid)
-        if ch:
-            print(f"✅ 可用頻道：{ch.name}（ID: {cid}）")
-        else:
-            print(f"❌ 無法存取頻道 ID：{cid}")
+    print(f"{bot.user} 已上線！")
+    print(f"監聽頻道：{[bot.get_channel(c).name for c in allowed_channel_ids if bot.get_channel(c)]}")
 
 @bot.event
 async def on_message(message):
-    if message.author.bot:
+    global openrouter_available
+
+    if message.author == bot.user:
         return
 
+    if message.reference and message.reference.resolved and message.reference.resolved.author == bot.user:
+        return
+
+    if message.channel.id not in allowed_channel_ids:
+        return
+
+    await bot.process_commands(message)
+
     content = message.content
-    channel_id = message.channel.id
+    author = message.author
 
-    print(f"\n📩 收到訊息: {content}")
-    print(f"📌 頻道: {channel_id}, 👤 作者: {message.author}")
+    is_from_player = not author.bot and bot.user in message.mentions
+    is_from_brother = False
+    is_from_other_allowed_bot = author.bot and author.id in allowed_bot_ids
 
-    if channel_id in allowed_channel_ids:
-        for keyword, responses in keyword_replies.items():
-            if keyword in content:
-                reply = random.choice(responses)
-                print(f"🎯 命中關鍵字：{keyword} → 回覆：{reply}")
-                await message.reply(reply, mention_author=True)
+    if not (is_from_player or is_from_brother or is_from_other_allowed_bot):
+        return
+
+        if openrouter_available:
+        try:
+            ai_reply = None
+            if is_from_player:
+                ai_reply = get_ai_reply(content, system_prompt=lover_system_prompt)
+            elif is_from_brother:
+                ai_reply = get_ai_reply(content, system_prompt=brother_system_prompt)
+
+            if ai_reply == "OPENROUTER_QUOTA_EXCEEDED":
+                openrouter_offline()
+                ai_reply = None 
+            elif ai_reply:
+                await message.reply(ai_reply)
                 return
 
-        print("🔍 未命中關鍵字，呼叫 OpenRouter...")
-        reply = await query_openrouter(content)
-        if reply:
-            print(f"📨 回覆：{reply}")
-            await message.reply(reply, mention_author=True)
+        except Exception as e:
+            print(f"OpenRouter API 失敗，切換至關鍵字模式：{e}")
+            traceback.print_exc()
+            openrouter_offline()
 
-# ─── Flask 健康檢查 ──────
-app = Flask(__name__)
-@app.route("/")
-def home():
-    return "Bot is alive."
-def run_web():
-    app.run(host="0.0.0.0", port=8080)
-Thread(target=run_web).start()
+    # 👉 OpenRouter 不可用時 或 API 失敗後，使用關鍵字回覆
+    if is_from_player:
+        for keyword, reply_list in keyword_replies.items():
+            if keyword in content:
+                await message.reply(random.choice(reply_list))
+                break
 
-# ─── 啟動 Bot ──────
-bot.run(discord_token)
+        # ✅ 隨機加入表情符號
+        try:
+            if random.random() < 0.4:  # 40% 機率反應
+                unicode_emojis = ["😏", "😎", "🔥", "😘", "🙄", "💋", "❤️"]
+                await message.add_reaction(random.choice(unicode_emojis))
+        except Exception as e:
+            print("⚠️ 表情符號添加失敗：", e)

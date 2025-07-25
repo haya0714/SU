@@ -1,8 +1,6 @@
-services:
-  - type: web
-    name: my-discord-bot-2  
-    env: python
-    plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: python bot.py
-    autoDeploy: true
+envVars:
+  - key: DISCORD_TOKEN
+    value: ${DISCORD_TOKEN}
+  - key: OPENROUTER_API_KEY
+    value: ${OPENROUTER_API_KEY}
+startCommand: python bot.py
