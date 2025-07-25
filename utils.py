@@ -66,7 +66,7 @@ def get_ai_reply(user_input, system_prompt):
 
         payload = {
             # 如果你想要更好的模型，可以考慮 gemma-2-9b-it, claude-3.5-sonnet 等
-            "model": "Nous Hermes 2 - Mistral 7B", 
+            "model": "nousresearch/nous-hermes-2-mistral-7b-dpo", 
             "messages": messages
         }
 
