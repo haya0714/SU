@@ -57,59 +57,56 @@ async def on_ready():
 async def on_message(message):
     global openrouter_available
 
+    # --- 基本的訊息過濾，維持不變 ---
     if message.author == bot.user:
         return
-
     if message.reference and message.reference.resolved and message.reference.resolved.author == bot.user:
         return
-
     if message.channel.id not in allowed_channel_ids:
         return
+    
+    # --- 判斷是否為觸發條件 ---
+    # 僅當真人使用者 @Bot 時觸發
+    if not (not message.author.bot and bot.user in message.mentions):
+        return
 
+    # 在處理訊息前先處理指令
     await bot.process_commands(message)
 
     content = message.content
-    author = message.author
+    reply_content = None # 先宣告一個變數來儲存最終要回覆的內容
 
-    is_from_player = not author.bot and bot.user in message.mentions
-    # is_from_brother = False  # 暫時不使用
-    is_from_other_allowed_bot = False  # 沒定義 allowed_bot_ids，所以預設為 False
-
-    if not (is_from_player or is_from_other_allowed_bot):
-        return
-
+    # --- 步驟一：決定回覆內容 (AI 優先) ---
     if openrouter_available:
-        try:
-            ai_reply = None
-            if is_from_player:
-                ai_reply = get_ai_reply(content, system_prompt=lover_system_prompt)
-            # elif is_from_brother:
-            #     ai_reply = get_ai_reply(content, system_prompt=brother_system_prompt)
+        # 呼叫 AI，我們知道 get_ai_reply 內部有完整的錯誤處理
+        ai_reply = get_ai_reply(content, system_prompt=lover_system_prompt)
 
-            if ai_reply == "OPENROUTER_QUOTA_EXCEEDED":
-                openrouter_offline()
-                ai_reply = None 
-            elif ai_reply:
-                await message.reply(ai_reply)
-                return
-
-        except Exception as e:
-            print(f"OpenRouter API 失敗，切換至關鍵字模式：{e}")
-            traceback.print_exc()
+        if ai_reply == "OPENROUTER_QUOTA_EXCEEDED":
             openrouter_offline()
-
-    if is_from_player:
+            # AI 額度用完，ai_reply 視為 None，交由後續的關鍵字邏輯處理
+        elif ai_reply:
+            reply_content = ai_reply
+    
+    # --- 步驟二：如果 AI 沒有回覆，則嘗試關鍵字回覆 ---
+    if not reply_content:
         for keyword, reply_list in keyword_replies.items():
             if keyword in content:
-                await message.reply(random.choice(reply_list))
-                break
+                reply_content = random.choice(reply_list)
+                break # 找到第一個匹配的關鍵字就跳出
 
-        try:
-            if random.random() < 0.4:
-                unicode_emojis = ["😏", "😎", "🔥", "😘", "🙄", "💋", "❤️"]
-                await message.add_reaction(random.choice(unicode_emojis))
-        except Exception as e:
-            print("⚠️ 表情符號添加失敗：", e)
+    # --- 步驟三：如果最終有回覆內容，則發送回覆 ---
+    if reply_content:
+        await message.reply(reply_content)
+
+    # --- 步驟四：無論是否有回覆，都執行表情符號邏輯 ---
+    # 這樣可以實現：有時就算 Bot 不回話，也會默默給你一個反應
+    try:
+        # 40% 的機率添加一個表情符號反應
+        if random.random() < 0.4:
+            unicode_emojis = ["😏", "😎", "🔥", "😘", "🙄", "💋", "❤️"]
+            await message.add_reaction(random.choice(unicode_emojis))
+    except Exception as e:
+        print(f"⚠️ 表情符號添加失敗：{e}")
 
 # ─── Flask Web Server ───────────────
 app = Flask(__name__)
