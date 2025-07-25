@@ -1,4 +1,4 @@
-from utils import get_ai_reply, lover_system_prompt, brother_system_prompt
+from utils import get_ai_reply, lover_system_prompt  # <-- 已移除 brother_system_prompt
 
 import discord
 from discord.ext import commands
@@ -41,7 +41,6 @@ keyword_replies = {
     "想你": ["「妳想我？我還以為妳早被哪個男人牽走了。」", "「我不在的時候，腦子最好只放我，不然我會找人驗妳夢裡。」", "「別光說嘴，來讓我看看妳到底想我想成什麼德行。」"]
 }
 
-
 openrouter_available = True
 
 def openrouter_offline():
@@ -73,10 +72,10 @@ async def on_message(message):
     author = message.author
 
     is_from_player = not author.bot and bot.user in message.mentions
-    is_from_brother = False
-    is_from_other_allowed_bot = author.bot and author.id in allowed_bot_ids
+    # is_from_brother = False  # 暫時不使用
+    is_from_other_allowed_bot = False  # 沒定義 allowed_bot_ids，所以預設為 False
 
-    if not (is_from_player or is_from_brother or is_from_other_allowed_bot):
+    if not (is_from_player or is_from_other_allowed_bot):
         return
 
     if openrouter_available:
@@ -84,8 +83,8 @@ async def on_message(message):
             ai_reply = None
             if is_from_player:
                 ai_reply = get_ai_reply(content, system_prompt=lover_system_prompt)
-            elif is_from_brother:
-                ai_reply = get_ai_reply(content, system_prompt=brother_system_prompt)
+            # elif is_from_brother:
+            #     ai_reply = get_ai_reply(content, system_prompt=brother_system_prompt)
 
             if ai_reply == "OPENROUTER_QUOTA_EXCEEDED":
                 openrouter_offline()
@@ -99,7 +98,6 @@ async def on_message(message):
             traceback.print_exc()
             openrouter_offline()
 
-    # 👉 OpenRouter 不可用時 或 API 失敗後，使用關鍵字回覆
     if is_from_player:
         for keyword, reply_list in keyword_replies.items():
             if keyword in content:
