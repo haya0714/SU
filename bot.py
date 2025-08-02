@@ -22,6 +22,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # ─── 支援的頻道 ID ─────────────
 allowed_channel_ids = [
     1366595410830819328,
+    1400434026124410951,
     1390002514056974426
 ]
 
